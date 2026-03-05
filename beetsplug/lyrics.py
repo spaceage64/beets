@@ -241,12 +241,15 @@ class Backend(LyricsRequestHandler, metaclass=BackendClass):
     def fetch(
         self, artist: str, title: str, album: str, length: int
     ) -> Lyrics | None:
+        """Return lyrics for a song, or ``None`` when no match is found."""
         raise NotImplementedError
 
 
 @dataclass
 @total_ordering
 class LRCLyrics:
+    """Hold LRCLib candidate data and ranking helpers for matching."""
+
     #: Percentage tolerance for max duration difference between lyrics and item.
     DURATION_DIFF_TOLERANCE = 0.05
 
@@ -265,6 +268,7 @@ class LRCLyrics:
     def verify_synced_lyrics(
         cls, duration: float, lyrics: str | None
     ) -> str | None:
+        """Accept synced lyrics only when the final timestamp fits duration."""
         if lyrics and (
             m := Lyrics.LINE_PARTS_PAT.match(lyrics.splitlines()[-1])
         ):
@@ -280,6 +284,7 @@ class LRCLyrics:
     def make(
         cls, candidate: LRCLibAPI.Item, target_duration: float
     ) -> LRCLyrics:
+        """Build a scored candidate from LRCLib payload data."""
         duration = candidate["duration"] or 0.0
         return cls(
             target_duration,
@@ -322,6 +327,7 @@ class LRCLyrics:
         return not self.synced, self.duration_dist
 
     def get_text(self, want_synced: bool) -> str:
+        """Return the preferred text form for this candidate."""
         if self.instrumental:
             return INSTRUMENTAL_LYRICS
 
@@ -749,6 +755,8 @@ class Google(SearchBackend):
 
 @dataclass
 class Translator(LyricsRequestHandler):
+    """Translate lyrics text while preserving existing structured metadata."""
+
     TRANSLATE_URL = "https://api.cognitive.microsofttranslator.com/translate"
     SEPARATOR = " | "
 
@@ -765,6 +773,7 @@ class Translator(LyricsRequestHandler):
         to_language: str,
         from_languages: list[str] | None = None,
     ) -> Translator:
+        """Construct a translator with normalized language configuration."""
         return cls(
             log,
             api_key,
@@ -1048,6 +1057,7 @@ class LyricsPlugin(LyricsRequestHandler, plugins.BeetsPlugin):
             self.add_item_lyrics(item, False)
 
     def find_lyrics(self, item: Item) -> Lyrics | None:
+        """Return the first lyrics match from the configured source search."""
         album, length = item.album, round(item.length)
         matches = (
             self.get_lyrics(a, t, album, length)
